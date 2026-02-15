@@ -3,206 +3,235 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Chair Dashboard</title>
+<title>Smart Chair</title>
 <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: 'Segoe UI', sans-serif;
-    background: #0f1117;
-    color: #e0e0e0;
-    min-height: 100vh;
+    font-family: -apple-system, 'Helvetica Neue', sans-serif;
+    background: #fff;
+    color: #111;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 40px 20px;
+  }
+
+  .header {
     display: flex;
-    flex-direction: column;
+    justify-content: space-between;
     align-items: center;
-    padding: 20px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid #111;
+    padding-bottom: 12px;
   }
-  h1 { font-size: 1.6rem; margin-bottom: 8px; color: #fff; }
+  .header h1 { font-size: 1.1rem; font-weight: 600; }
+  .conn { font-size: 0.75rem; color: #999; }
+  .conn.ok { color: #111; }
 
-  .conn-status {
-    font-size: 0.85rem;
-    margin-bottom: 20px;
-    padding: 6px 16px;
-    border-radius: 20px;
+  .sitting-badge {
+    font-size: 0.75rem;
     font-weight: 600;
+    letter-spacing: 1px;
+    padding: 4px 0;
+    margin-bottom: 32px;
+    color: #999;
   }
-  .conn-status.connecting { background: #2d2d2d; color: #ffd43b; }
-  .conn-status.ok { background: #1b4332; color: #95d5b2; }
-  .conn-status.fail { background: #3d1111; color: #ff6b6b; }
-
-  .status {
-    font-size: 0.95rem;
-    margin-bottom: 24px;
-    padding: 6px 18px;
-    border-radius: 20px;
-    font-weight: 600;
-    transition: all 0.3s;
-  }
-  .status.on  { background: #1b4332; color: #95d5b2; }
-  .status.off { background: #2d2d2d; color: #888; }
+  .sitting-badge.on { color: #111; }
 
   .grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 16px;
-    width: 100%;
-    max-width: 500px;
-    margin-bottom: 24px;
+    gap: 1px;
+    background: #ddd;
+    border: 1px solid #ddd;
+    margin-bottom: 32px;
   }
-  .card {
-    background: #1a1d27;
-    border-radius: 16px;
-    padding: 20px;
-    text-align: center;
-    border: 1px solid #2a2d3a;
-    transition: border-color 0.3s;
+  .cell {
+    background: #fff;
+    padding: 16px;
   }
-  .card.active { border-color: #4dabf7; }
-  .card .label {
-    font-size: 0.8rem;
+  .cell .label {
+    font-size: 0.65rem;
     text-transform: uppercase;
     letter-spacing: 2px;
-    color: #888;
+    color: #999;
+    margin-bottom: 6px;
+  }
+  .cell .time {
+    font-size: 1.5rem;
+    font-weight: 300;
+    font-family: 'Courier New', monospace;
+    letter-spacing: 1px;
+  }
+
+  .section-title {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #999;
+    margin-bottom: 12px;
+  }
+
+  .bar-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 8px;
   }
-  .card .time {
-    font-size: 1.8rem;
-    font-weight: 700;
-    font-variant-numeric: tabular-nums;
-    font-family: 'Courier New', monospace;
-  }
-  .card.now .time  { color: #4dabf7; }
-  .card.last .time { color: #ffd43b; }
-  .card.total .time { color: #69db7c; }
-  .card.best .time  { color: #ff6b6b; }
+  .bar-name { font-size: 0.75rem; color: #999; width: 20px; }
+  .bar-track { flex: 1; height: 4px; background: #eee; }
+  .bar-val { height: 100%; background: #111; transition: width 0.3s; }
+  .bar-val.over { background: #d00; }
+  .bar-num { font-size: 0.7rem; color: #999; width: 36px; text-align: right; }
 
-  .sensors {
-    width: 100%;
-    max-width: 500px;
-    background: #1a1d27;
-    border-radius: 16px;
-    padding: 20px;
-    border: 1px solid #2a2d3a;
-  }
-  .sensors h2 {
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-    color: #888;
-    margin-bottom: 14px;
-  }
-  .bar-group { margin-bottom: 10px; }
-  .bar-group:last-child { margin-bottom: 0; }
-  .bar-label {
-    font-size: 0.75rem;
-    color: #aaa;
-    margin-bottom: 4px;
+  .sensors { margin-bottom: 40px; }
+
+  .log-section { border-top: 1px solid #111; padding-top: 16px; }
+  .log-header {
     display: flex;
     justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
   }
-  .bar-bg {
-    width: 100%;
-    height: 10px;
-    background: #2a2d3a;
-    border-radius: 5px;
-    overflow: hidden;
+  .log-clear {
+    font-size: 0.7rem;
+    color: #999;
+    cursor: pointer;
+    border: none;
+    background: none;
   }
-  .bar-fill {
-    height: 100%;
-    border-radius: 5px;
-    transition: width 0.3s;
-    background: #4dabf7;
+  .log-clear:hover { color: #111; }
+
+  .log-list { list-style: none; }
+  .log-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 0;
+    border-bottom: 1px solid #eee;
+    font-size: 0.85rem;
   }
-  .bar-fill.over { background: #ff6b6b; }
+  .log-item:last-child { border-bottom: none; }
+  .log-time { color: #999; font-size: 0.75rem; width: 70px; }
+  .log-dur { font-family: 'Courier New', monospace; font-weight: 500; flex: 1; }
+  .log-best { font-size: 0.65rem; font-weight: 600; letter-spacing: 1px; color: #d00; }
+  .log-empty { font-size: 0.8rem; color: #ccc; padding: 20px 0; }
 </style>
 </head>
 <body>
+
+<div class="header">
   <h1>Smart Chair</h1>
-  <div class="conn-status connecting" id="conn">MQTT 연결 중...</div>
-  <div class="status off" id="status">NOT SITTING</div>
+  <span class="conn" id="conn">connecting...</span>
+</div>
 
-  <div class="grid">
-    <div class="card now" id="card-now">
-      <div class="label">Now</div>
-      <div class="time" id="now">00:00:00</div>
-    </div>
-    <div class="card last">
-      <div class="label">Last</div>
-      <div class="time" id="last">00:00:00</div>
-    </div>
-    <div class="card total">
-      <div class="label">Total</div>
-      <div class="time" id="total">00:00:00</div>
-    </div>
-    <div class="card best">
-      <div class="label">Best</div>
-      <div class="time" id="best">00:00:00</div>
-    </div>
-  </div>
+<div class="sitting-badge" id="status">NOT SITTING</div>
 
-  <div class="sensors">
-    <h2>Pressure Sensors</h2>
-    <div class="bar-group">
-      <div class="bar-label"><span>Sensor 1</span><span id="v1">0</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="b1" style="width:0%"></div></div>
-    </div>
-    <div class="bar-group">
-      <div class="bar-label"><span>Sensor 2</span><span id="v2">0</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="b2" style="width:0%"></div></div>
-    </div>
-    <div class="bar-group">
-      <div class="bar-label"><span>Sensor 3</span><span id="v3">0</span></div>
-      <div class="bar-bg"><div class="bar-fill" id="b3" style="width:0%"></div></div>
-    </div>
+<div class="grid">
+  <div class="cell">
+    <div class="label">Now</div>
+    <div class="time" id="now">00:00:00</div>
   </div>
+  <div class="cell">
+    <div class="label">Last</div>
+    <div class="time" id="last">00:00:00</div>
+  </div>
+  <div class="cell">
+    <div class="label">Total</div>
+    <div class="time" id="total">00:00:00</div>
+  </div>
+  <div class="cell">
+    <div class="label">Best</div>
+    <div class="time" id="best">00:00:00</div>
+  </div>
+</div>
+
+<div class="sensors">
+  <div class="section-title">Sensors</div>
+  <div class="bar-row">
+    <span class="bar-name">S1</span>
+    <div class="bar-track"><div class="bar-val" id="b1" style="width:0%"></div></div>
+    <span class="bar-num" id="v1">0</span>
+  </div>
+  <div class="bar-row">
+    <span class="bar-name">S2</span>
+    <div class="bar-track"><div class="bar-val" id="b2" style="width:0%"></div></div>
+    <span class="bar-num" id="v2">0</span>
+  </div>
+  <div class="bar-row">
+    <span class="bar-name">S3</span>
+    <div class="bar-track"><div class="bar-val" id="b3" style="width:0%"></div></div>
+    <span class="bar-num" id="v3">0</span>
+  </div>
+</div>
+
+<div class="log-section">
+  <div class="log-header">
+    <div class="section-title" style="margin-bottom:0">Log</div>
+    <button class="log-clear" onclick="clearLog()">clear</button>
+  </div>
+  <ul class="log-list" id="log">
+    <li class="log-empty">No records yet</li>
+  </ul>
+</div>
 
 <script>
 var TOPIC = 'smartchair/01works_chair';
+var LOG_TOPIC = 'smartchair/01works_chair/log';
+var logs = JSON.parse(localStorage.getItem('chair_logs') || '[]');
+renderLogs();
 
 var client = mqtt.connect('wss://broker.hivemq.com:8884/mqtt');
 
 client.on('connect', function() {
-  document.getElementById('conn').textContent = 'MQTT 연결됨';
-  document.getElementById('conn').className = 'conn-status ok';
+  document.getElementById('conn').textContent = 'connected';
+  document.getElementById('conn').className = 'conn ok';
   client.subscribe(TOPIC);
+  client.subscribe(LOG_TOPIC);
 });
 
 client.on('error', function() {
-  document.getElementById('conn').textContent = 'MQTT 연결 실패';
-  document.getElementById('conn').className = 'conn-status fail';
+  document.getElementById('conn').textContent = 'disconnected';
+  document.getElementById('conn').className = 'conn';
 });
 
 client.on('offline', function() {
-  document.getElementById('conn').textContent = 'MQTT 연결 끊김';
-  document.getElementById('conn').className = 'conn-status fail';
+  document.getElementById('conn').textContent = 'offline';
+  document.getElementById('conn').className = 'conn';
 });
 
 client.on('message', function(topic, message) {
   var d = JSON.parse(message.toString());
 
-  document.getElementById('now').textContent = fmt(d.now);
-  document.getElementById('last').textContent = fmt(d.last);
-  document.getElementById('total').textContent = fmt(d.total);
-  document.getElementById('best').textContent = fmt(d.best);
+  if (topic === TOPIC) {
+    document.getElementById('now').textContent = fmt(d.now);
+    document.getElementById('last').textContent = fmt(d.last);
+    document.getElementById('total').textContent = fmt(d.total);
+    document.getElementById('best').textContent = fmt(d.best);
 
-  var st = document.getElementById('status');
-  var cn = document.getElementById('card-now');
-  if (d.sitting) {
-    st.textContent = 'SITTING';
-    st.className = 'status on';
-    cn.classList.add('active');
-  } else {
-    st.textContent = 'NOT SITTING';
-    st.className = 'status off';
-    cn.classList.remove('active');
+    var st = document.getElementById('status');
+    if (d.sitting) {
+      st.textContent = 'SITTING';
+      st.className = 'sitting-badge on';
+    } else {
+      st.textContent = 'NOT SITTING';
+      st.className = 'sitting-badge';
+    }
+
+    document.getElementById('v1').textContent = d.s1;
+    document.getElementById('v2').textContent = d.s2;
+    document.getElementById('v3').textContent = d.s3;
+    updateBar('b1', d.s1);
+    updateBar('b2', d.s2);
+    updateBar('b3', d.s3);
   }
 
-  document.getElementById('v1').textContent = d.s1;
-  document.getElementById('v2').textContent = d.s2;
-  document.getElementById('v3').textContent = d.s3;
-  updateBar('b1', d.s1);
-  updateBar('b2', d.s2);
-  updateBar('b3', d.s3);
+  if (topic === LOG_TOPIC) {
+    logs.unshift(d);
+    if (logs.length > 50) logs.pop();
+    localStorage.setItem('chair_logs', JSON.stringify(logs));
+    renderLogs();
+  }
 });
 
 function fmt(ms) {
@@ -219,7 +248,31 @@ function updateBar(id, val) {
   var pct = Math.min(val / 4095 * 100, 100);
   var el = document.getElementById(id);
   el.style.width = pct + '%';
-  el.className = val > 300 ? 'bar-fill over' : 'bar-fill';
+  el.className = val > 300 ? 'bar-val over' : 'bar-val';
+}
+
+function renderLogs() {
+  var ul = document.getElementById('log');
+  if (logs.length === 0) {
+    ul.innerHTML = '<li class="log-empty">No records yet</li>';
+    return;
+  }
+  var html = '';
+  for (var i = 0; i < logs.length; i++) {
+    var l = logs[i];
+    html += '<li class="log-item">';
+    html += '<span class="log-time">' + l.time + '</span>';
+    html += '<span class="log-dur">' + fmt(l.duration) + '</span>';
+    html += l.best ? '<span class="log-best">NEW BEST</span>' : '';
+    html += '</li>';
+  }
+  ul.innerHTML = html;
+}
+
+function clearLog() {
+  logs = [];
+  localStorage.removeItem('chair_logs');
+  renderLogs();
 }
 </script>
 </body>
